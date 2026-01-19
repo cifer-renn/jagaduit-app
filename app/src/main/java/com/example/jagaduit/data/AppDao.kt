@@ -10,18 +10,20 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppDao {
-    // Transaksi
+    // --- TRANSAKSI ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: TransactionEntity)
 
     @Delete
     suspend fun deleteTransaction(transaction: TransactionEntity)
 
-    // Urutin transaksi dari yg terbaru
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
-    // Kategori
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    suspend fun getTransactionById(id: Int): TransactionEntity?
+
+    // --- KATEGORI ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: CategoryEntity)
 
@@ -31,19 +33,20 @@ interface AppDao {
     @Query("SELECT * FROM categories WHERE type = :type")
     fun getCategoriesByType(type: String): Flow<List<CategoryEntity>>
 
-    // Account
-    @Insert(onConflict = OnConflictStrategy.IGNORE) // Ignore jika nama akun sama
+    // --- ACCOUNT (DOMPET) ---
+    // Update agar sesuai dengan Entity temanmu (tabel: accounts)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAccount(account: AccountEntity)
 
+    // Query ke tabel 'accounts'
     @Query("SELECT * FROM accounts")
     fun getAllAccounts(): Flow<List<AccountEntity>>
 
     @Update
     suspend fun updateAccount(account: AccountEntity)
 
+    // Query ke tabel 'accounts' dan where 'name' (karena name adalah PK)
     @Query("UPDATE accounts SET balance = :newBalance WHERE name = :accountName")
     suspend fun updateAccountBalance(accountName: String, newBalance: Double)
-
-    @Query("SELECT * FROM transactions WHERE id = :id")
-    suspend fun getTransactionById(id: Int): TransactionEntity?
 }

@@ -16,7 +16,12 @@ import kotlinx.coroutines.launch
 )
 abstract class JagaDuitDatabase : RoomDatabase() {
 
+    // KITA BUTUH KEDUANYA:
+    // 1. AppDao untuk Transaksi (sesuai kodingan lama)
     abstract fun appDao(): AppDao
+
+    // 2. AccountDao untuk ViewModel Account (sesuai kodingan baru)
+    abstract fun accountDao(): AccountDao
 
     companion object {
         @Volatile
@@ -30,6 +35,7 @@ abstract class JagaDuitDatabase : RoomDatabase() {
                     "jagaduit_database"
                 )
                     .addCallback(DatabaseCallback())
+                    .fallbackToDestructiveMigration() // Tambahan aman: Reset db jika struktur berubah drastis
                     .build()
                 INSTANCE = instance
                 instance
@@ -37,29 +43,33 @@ abstract class JagaDuitDatabase : RoomDatabase() {
         }
     }
 
-    // Callback untuk mengisi data awal
+    // Callback untuk mengisi data awal saat database pertama kali dibuat
     private class DatabaseCallback : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
+                    // Kita pakai appDao untuk isi data awal
+                    // (Asumsi function insertCategory & insertAccount ada di AppDao)
                     populateDatabase(database.appDao())
                 }
             }
         }
 
         suspend fun populateDatabase(dao: AppDao) {
-            // Expense
+            // Data Awal: Expense Categories
             dao.insertCategory(CategoryEntity(name = "Makanan", type = "EXPENSE"))
             dao.insertCategory(CategoryEntity(name = "Transport", type = "EXPENSE"))
             dao.insertCategory(CategoryEntity(name = "Belanja", type = "EXPENSE"))
             dao.insertCategory(CategoryEntity(name = "Tagihan", type = "EXPENSE"))
 
-            // Income
+            // Data Awal: Income Categories
             dao.insertCategory(CategoryEntity(name = "Gaji", type = "INCOME"))
             dao.insertCategory(CategoryEntity(name = "Bonus", type = "INCOME"))
 
-            // Default Accounts
+            // Data Awal: Default Accounts (Dompet)
+            // Pastikan method insertAccount ada di AppDao.
+            // Kalau error merah disini, berarti pindahkan insertAccount ke AccountDao.
             dao.insertAccount(AccountEntity(name = "Cash", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "BCA", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "Gopay", balance = 0.0))

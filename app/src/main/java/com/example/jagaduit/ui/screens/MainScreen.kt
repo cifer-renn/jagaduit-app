@@ -13,12 +13,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavController // Pastikan import ini ada
+import androidx.compose.ui.platform.LocalContext // PENTING: Untuk akses Database
+import androidx.lifecycle.viewmodel.compose.viewModel // PENTING: Untuk bikin ViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+// IMPORT UNTUK DATABASE & VIEWMODEL
+import com.example.jagaduit.data.JagaDuitDatabase
+import com.example.jagaduit.viewmodel.AccountViewModel
+import com.example.jagaduit.viewmodel.AccountViewModelFactory
 
 data class BottomNavItem(
     val route: String,
@@ -27,10 +33,9 @@ data class BottomNavItem(
 )
 
 @Composable
-// terima paramater rootNavController dari main activity
 fun MainScreen(rootNavController: NavController) {
 
-    // Ini navController buat yang bawah
+    // Ini navController khusus untuk menu bawah (Bottom Bar)
     val bottomNavController = rememberNavController()
 
     val items = listOf(
@@ -84,11 +89,30 @@ fun MainScreen(rootNavController: NavController) {
             startDestination = "transaction",
             modifier = Modifier.padding(innerPadding)
         ) {
+            // 1. Transaction (Dashboard)
             composable("transaction") { TransactionScreen(rootNavController) }
 
+            // 2. Statistics
             composable("stats") { StatsScreen(rootNavController) }
+
+            // 3. Scan
             composable("scan") { ScanScreen(rootNavController) }
-            composable("account") { AccountScreen() }
+
+            composable("account") {
+                // Ambil Context
+                val context = LocalContext.current
+                // Ambil Database
+                val database = JagaDuitDatabase.getDatabase(context)
+
+                // Siapkan ViewModel dengan Factory
+                val accViewModel: AccountViewModel = viewModel(
+                    factory = AccountViewModelFactory(database.accountDao())
+                )
+
+                AccountScreen(viewModel = accViewModel)
+            }
+
+            // 5. Goal (Biarkan kosong dulu gapapa, karena belum ada fiturnya)
             composable("goal") { GoalScreen() }
         }
     }

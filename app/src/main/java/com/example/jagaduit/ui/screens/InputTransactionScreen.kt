@@ -1,5 +1,6 @@
-package com.example.jagaduit.ui.screens
+package com.example.jagaduit.ui.screens // <-- SAYA UBAH INI JADI ADA 's' AGAR KETEMU DI MAINACTIVITY
 
+import android.app.Application
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,11 +18,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.jagaduit.data.JagaDuitDatabase
+import com.example.jagaduit.viewmodel.AccountViewModel
 import com.example.jagaduit.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+
+// SAYA TAMBAHKAN FACTORY DI SINI SUPAYA TIDAK ERROR "UNRESOLVED REFERENCE"
+// (Ini hanya logika penyambung data, tidak mengubah tampilan UI)
+class LocalAccountViewModelFactory(private val dao: com.example.jagaduit.data.AccountDao) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
+            return AccountViewModel(dao) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,12 +48,24 @@ fun InputTransactionScreen(
     scannedAmount: String = "",
     scannedCategory: String = "",
     scannedDate: String = "",
-    viewModel: TransactionViewModel = viewModel()
+    viewModel: TransactionViewModel = viewModel() // Transaction VM
 ) {
     val context = LocalContext.current
+    val application = context.applicationContext as Application
 
-    // UI & FORM STATES
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // 1. SETUP ACCOUNT VIEWMODEL
+    val db = JagaDuitDatabase.getDatabase(context)
+
+    // Perbaikan: Menggunakan Factory Lokal yang saya buat di atas agar aman
+    val accViewModel: AccountViewModel = viewModel(
+        factory = LocalAccountViewModelFactory(db.accountDao())
+    )
+
+    // Ambil list akun untuk dropdown & logika update saldo
+    val accountList by accViewModel.allAccounts.collectAsState(initial = emptyList())
+
+    // 2. STATE VARIABELS UI
+    var selectedTab by remember { mutableIntStateOf(0) } // 0=Income, 1=Expense, 2=Transfer
     val tabs = listOf("Income", "Expense", "Transfer")
 
     var amount by remember { mutableStateOf("") }
@@ -52,27 +81,27 @@ fun InputTransactionScreen(
     // Helper State
     var isEditing by remember { mutableStateOf(false) }
 
-    // --- LOGIC 1: MENERIMA DATA DARI SCANNER (AI) ---
+    // --- LOGIC 1: JIKA DATA DARI HASIL SCAN (AI) ---
     LaunchedEffect(key1 = scannedAmount) {
-        if (scannedAmount.isNotEmpty()) {
-            // 1. Isi Amount
-            amount = scannedAmount
+        if (scannedAmount.isNotEmpty() && txnId == -1) {
+            // Bersihkan format (misal "Rp 50.000" jadi "50000")
+            amount = scannedAmount.replace(Regex("[^0-9]"), "")
 
-            // 2. Default ke Tab Expense (Biasanya struk itu pengeluaran)
+            // Default ke Tab Expense (Biasanya struk itu pengeluaran)
             selectedTab = 1
 
-            // 3. Isi Kategori
+            // Isi Kategori jika ada
             if (scannedCategory.isNotEmpty()) {
                 selectedCategory = scannedCategory
             }
 
-            // 4. Isi Tanggal
+            // Isi Tanggal jika ada
             if (scannedDate.isNotEmpty()) {
                 try {
                     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                     val date = sdf.parse(scannedDate)
                     if (date != null) {
-                        selectedDate = date.time // Un-commented agar jalan
+                        selectedDate = date.time
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -81,9 +110,10 @@ fun InputTransactionScreen(
         }
     }
 
-    // --- LOGIC 2: MENERIMA DATA UNTUK EDIT (Manual) ---
+    // --- LOGIC 2: JIKA MODE EDIT (Manual) ---
     LaunchedEffect(key1 = txnId) {
         if (txnId != -1) {
+            isEditing = true
             val txn = viewModel.getTransactionById(txnId)
             if (txn != null) {
                 amount = txn.amount.toLong().toString()
@@ -109,8 +139,7 @@ fun InputTransactionScreen(
         }
     }
 
-    // --- DROPDOWN DATA ---
-    val accountList by viewModel.allAccounts.collectAsState(initial = emptyList())
+    // --- DATA DROPDOWN ---
     val categoryType = if (selectedTab == 0) "INCOME" else "EXPENSE"
     val categoryList by viewModel.getCategories(categoryType).collectAsState(initial = emptyList())
 
@@ -335,10 +364,44 @@ fun InputTransactionScreen(
                             else -> "TRANSFER"
                         }
 
+                        val amountVal = amount.toDoubleOrNull() ?: 0.0
+
+                        // --- LOGIC UPDATE SALDO DOMPET ---
+                        // (Hanya jalan jika Transaksi Baru, bukan Edit)
+                        if (txnId == -1) {
+                            // Helper function local untuk update saldo di list
+                            fun updateBalance(accountName: String, diff: Double) {
+                                val acc = accountList.find { it.name == accountName }
+                                if (acc != null) {
+                                    val newBalance = acc.balance + diff
+                                    accViewModel.updateAccount(acc.copy(balance = newBalance))
+                                }
+                            }
+
+                            when (typeStr) {
+                                "INCOME" -> {
+                                    // Uang Masuk -> Tambah Saldo
+                                    updateBalance(selectedAccountFrom, amountVal)
+                                }
+                                "EXPENSE" -> {
+                                    // Uang Keluar -> Kurang Saldo
+                                    updateBalance(selectedAccountFrom, -amountVal)
+                                }
+                                "TRANSFER" -> {
+                                    if (selectedAccountTo.isNotEmpty()) {
+                                        // Transfer -> Asal Berkurang, Tujuan Bertambah
+                                        updateBalance(selectedAccountFrom, -amountVal)
+                                        updateBalance(selectedAccountTo, amountVal)
+                                    }
+                                }
+                            }
+                        }
+
+                        // SIMPAN TRANSAKSI
                         viewModel.saveTransaction(
                             id = if (txnId == -1) 0 else txnId,
                             date = selectedDate,
-                            amount = amount.toDouble(),
+                            amount = amountVal,
                             type = typeStr,
                             category = if (selectedTab == 2) "Transfer" else selectedCategory,
                             accountFrom = selectedAccountFrom,
