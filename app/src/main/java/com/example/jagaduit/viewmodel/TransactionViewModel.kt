@@ -45,7 +45,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
         category: String,
         accountFrom: String,
         accountTo: String?,
-        note: String
+        note: String,
+        imagePath: String? = null
     ) {
         viewModelScope.launch {
             val transaction = TransactionEntity(
@@ -56,7 +57,8 @@ class TransactionViewModel(application: Application) : AndroidViewModel(applicat
                 category = category,
                 accountFrom = accountFrom,
                 accountTo = accountTo,
-                note = note
+                note = note,
+                imagePath = imagePath
             )
             dao.insertTransaction(transaction)
         }

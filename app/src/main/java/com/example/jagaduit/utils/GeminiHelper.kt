@@ -65,3 +65,19 @@ class GeminiHelper {
         }
     }
 }
+
+// Fungsi Helper: Simpan Bitmap ke Internal Storage
+fun saveBitmapToStorage(context: android.content.Context, bitmap: android.graphics.Bitmap): String {
+    val filename = "struk_${System.currentTimeMillis()}.jpg"
+    context.openFileOutput(filename, android.content.Context.MODE_PRIVATE).use { stream ->
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, stream)
+    }
+    return context.getFileStreamPath(filename).absolutePath
+}
+
+// Fungsi Helper: Simpan Uri (Galeri) ke Internal Storage
+fun saveUriToStorage(context: android.content.Context, uri: android.net.Uri): String {
+    val inputStream = context.contentResolver.openInputStream(uri)
+    val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+    return saveBitmapToStorage(context, bitmap)
+}

@@ -1,35 +1,52 @@
-package com.example.jagaduit.ui.screens // <-- SAYA UBAH INI JADI ADA 's' AGAR KETEMU DI MAINACTIVITY
+package com.example.jagaduit.ui.screens
 
 import android.app.Application
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.launch
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.jagaduit.data.JagaDuitDatabase
+import com.example.jagaduit.utils.saveBitmapToStorage
+import com.example.jagaduit.utils.saveUriToStorage
 import com.example.jagaduit.viewmodel.AccountViewModel
 import com.example.jagaduit.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-// SAYA TAMBAHKAN FACTORY DI SINI SUPAYA TIDAK ERROR "UNRESOLVED REFERENCE"
-// (Ini hanya logika penyambung data, tidak mengubah tampilan UI)
 class LocalAccountViewModelFactory(private val dao: com.example.jagaduit.data.AccountDao) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -48,24 +65,20 @@ fun InputTransactionScreen(
     scannedAmount: String = "",
     scannedCategory: String = "",
     scannedDate: String = "",
-    viewModel: TransactionViewModel = viewModel() // Transaction VM
+    scannedImagePath: String = "",
+    viewModel: TransactionViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val application = context.applicationContext as Application
 
     // 1. SETUP ACCOUNT VIEWMODEL
     val db = JagaDuitDatabase.getDatabase(context)
-
-    // Perbaikan: Menggunakan Factory Lokal yang saya buat di atas agar aman
     val accViewModel: AccountViewModel = viewModel(
         factory = LocalAccountViewModelFactory(db.accountDao())
     )
-
-    // Ambil list akun untuk dropdown & logika update saldo
     val accountList by accViewModel.allAccounts.collectAsState(initial = emptyList())
 
     // 2. STATE VARIABELS UI
-    var selectedTab by remember { mutableIntStateOf(0) } // 0=Income, 1=Expense, 2=Transfer
+    var selectedTab by remember { mutableIntStateOf(1) }
     val tabs = listOf("Income", "Expense", "Transfer")
 
     var amount by remember { mutableStateOf("") }
@@ -75,42 +88,48 @@ fun InputTransactionScreen(
     var selectedAccountTo by remember { mutableStateOf("") }
     var selectedDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+    // STATE GAMBAR
+    var currentImagePath by remember { mutableStateOf<String?>(null) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    // UPDATE: State untuk Zoom Gambar
+    var showFullImageDialog by remember { mutableStateOf(false) }
+
     var showDatePicker by remember { mutableStateOf(false) }
     val dateState = rememberDatePickerState(initialSelectedDateMillis = selectedDate)
 
     // Helper State
     var isEditing by remember { mutableStateOf(false) }
 
-    // --- LOGIC 1: JIKA DATA DARI HASIL SCAN (AI) ---
+    // --- LAUNCHERS ---
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { currentImagePath = saveUriToStorage(context, it) }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        bitmap?.let { currentImagePath = saveBitmapToStorage(context, it) }
+    }
+
+    // --- LOGIC 1: DATA DARI SCANNER ---
     LaunchedEffect(key1 = scannedAmount) {
         if (scannedAmount.isNotEmpty() && txnId == -1) {
-            // Bersihkan format (misal "Rp 50.000" jadi "50000")
             amount = scannedAmount.replace(Regex("[^0-9]"), "")
-
-            // Default ke Tab Expense (Biasanya struk itu pengeluaran)
             selectedTab = 1
+            if (scannedCategory.isNotEmpty()) selectedCategory = scannedCategory
 
-            // Isi Kategori jika ada
-            if (scannedCategory.isNotEmpty()) {
-                selectedCategory = scannedCategory
-            }
-
-            // Isi Tanggal jika ada
             if (scannedDate.isNotEmpty()) {
                 try {
                     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                     val date = sdf.parse(scannedDate)
-                    if (date != null) {
-                        selectedDate = date.time
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                    if (date != null) selectedDate = date.time
+                } catch (e: Exception) { e.printStackTrace() }
+            }
+
+            if (scannedImagePath.isNotEmpty()) {
+                currentImagePath = scannedImagePath
             }
         }
     }
 
-    // --- LOGIC 2: JIKA MODE EDIT (Manual) ---
+    // --- LOGIC 2: MODE EDIT ---
     LaunchedEffect(key1 = txnId) {
         if (txnId != -1) {
             isEditing = true
@@ -120,20 +139,12 @@ fun InputTransactionScreen(
                 note = txn.note
                 selectedDate = txn.date
                 selectedAccountFrom = txn.accountFrom
+                currentImagePath = txn.imagePath
 
                 when (txn.type) {
-                    "INCOME" -> {
-                        selectedTab = 0
-                        selectedCategory = txn.category
-                    }
-                    "EXPENSE" -> {
-                        selectedTab = 1
-                        selectedCategory = txn.category
-                    }
-                    "TRANSFER" -> {
-                        selectedTab = 2
-                        selectedAccountTo = txn.accountTo ?: ""
-                    }
+                    "INCOME" -> { selectedTab = 0; selectedCategory = txn.category }
+                    "EXPENSE" -> { selectedTab = 1; selectedCategory = txn.category }
+                    "TRANSFER" -> { selectedTab = 2; selectedAccountTo = txn.accountTo ?: "" }
                 }
             }
         }
@@ -222,7 +233,6 @@ fun InputTransactionScreen(
 
             // DYNAMIC FORM FIELDS
             if (selectedTab != 2) {
-                // INCOME & EXPENSE
                 ExposedDropdownMenuBox(
                     expanded = expandedCategory,
                     onExpandedChange = { expandedCategory = !expandedCategory }
@@ -240,13 +250,7 @@ fun InputTransactionScreen(
                         onDismissRequest = { expandedCategory = false }
                     ) {
                         categoryList.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat.name) },
-                                onClick = {
-                                    selectedCategory = cat.name
-                                    expandedCategory = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(cat.name) }, onClick = { selectedCategory = cat.name; expandedCategory = false })
                         }
                     }
                 }
@@ -270,19 +274,12 @@ fun InputTransactionScreen(
                         onDismissRequest = { expandedAccountFrom = false }
                     ) {
                         accountList.forEach { acc ->
-                            DropdownMenuItem(
-                                text = { Text(acc.name) },
-                                onClick = {
-                                    selectedAccountFrom = acc.name
-                                    expandedAccountFrom = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(acc.name) }, onClick = { selectedAccountFrom = acc.name; expandedAccountFrom = false })
                         }
                     }
                 }
 
             } else {
-                // TRANSFER
                 ExposedDropdownMenuBox(
                     expanded = expandedAccountFrom,
                     onExpandedChange = { expandedAccountFrom = !expandedAccountFrom }
@@ -300,13 +297,7 @@ fun InputTransactionScreen(
                         onDismissRequest = { expandedAccountFrom = false }
                     ) {
                         accountList.forEach { acc ->
-                            DropdownMenuItem(
-                                text = { Text(acc.name) },
-                                onClick = {
-                                    selectedAccountFrom = acc.name
-                                    expandedAccountFrom = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(acc.name) }, onClick = { selectedAccountFrom = acc.name; expandedAccountFrom = false })
                         }
                     }
                 }
@@ -330,13 +321,7 @@ fun InputTransactionScreen(
                         onDismissRequest = { expandedAccountTo = false }
                     ) {
                         accountList.filter { it.name != selectedAccountFrom }.forEach { acc ->
-                            DropdownMenuItem(
-                                text = { Text(acc.name) },
-                                onClick = {
-                                    selectedAccountTo = acc.name
-                                    expandedAccountTo = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(acc.name) }, onClick = { selectedAccountTo = acc.name; expandedAccountTo = false })
                         }
                     }
                 }
@@ -349,8 +334,48 @@ fun InputTransactionScreen(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Note (Optional)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    IconButton(onClick = { showImageSourceDialog = true }) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Attach Image", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
             )
+
+            // --- IMAGE PREVIEW THUMBNAIL ---
+            if (currentImagePath != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                        // UPDATE: Agar bisa diklik untuk Zoom
+                        .clickable { showFullImageDialog = true }
+                ) {
+                    val bitmap = BitmapFactory.decodeFile(currentImagePath)
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Attachment",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    // Tombol Hapus (Z-Index paling atas)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(24.dp)
+                            .background(Color.Red, CircleShape)
+                            .clickable { currentImagePath = null },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -366,10 +391,8 @@ fun InputTransactionScreen(
 
                         val amountVal = amount.toDoubleOrNull() ?: 0.0
 
-                        // --- LOGIC UPDATE SALDO DOMPET ---
-                        // (Hanya jalan jika Transaksi Baru, bukan Edit)
+                        // Logic Update Saldo
                         if (txnId == -1) {
-                            // Helper function local untuk update saldo di list
                             fun updateBalance(accountName: String, diff: Double) {
                                 val acc = accountList.find { it.name == accountName }
                                 if (acc != null) {
@@ -379,17 +402,10 @@ fun InputTransactionScreen(
                             }
 
                             when (typeStr) {
-                                "INCOME" -> {
-                                    // Uang Masuk -> Tambah Saldo
-                                    updateBalance(selectedAccountFrom, amountVal)
-                                }
-                                "EXPENSE" -> {
-                                    // Uang Keluar -> Kurang Saldo
-                                    updateBalance(selectedAccountFrom, -amountVal)
-                                }
+                                "INCOME" -> updateBalance(selectedAccountFrom, amountVal)
+                                "EXPENSE" -> updateBalance(selectedAccountFrom, -amountVal)
                                 "TRANSFER" -> {
                                     if (selectedAccountTo.isNotEmpty()) {
-                                        // Transfer -> Asal Berkurang, Tujuan Bertambah
                                         updateBalance(selectedAccountFrom, -amountVal)
                                         updateBalance(selectedAccountTo, amountVal)
                                     }
@@ -397,7 +413,7 @@ fun InputTransactionScreen(
                             }
                         }
 
-                        // SIMPAN TRANSAKSI
+                        // Simpan
                         viewModel.saveTransaction(
                             id = if (txnId == -1) 0 else txnId,
                             date = selectedDate,
@@ -406,7 +422,8 @@ fun InputTransactionScreen(
                             category = if (selectedTab == 2) "Transfer" else selectedCategory,
                             accountFrom = selectedAccountFrom,
                             accountTo = if (selectedTab == 2) selectedAccountTo else null,
-                            note = note
+                            note = note,
+                            imagePath = currentImagePath
                         )
 
                         val msg = if (txnId == -1) "Transaction Saved!" else "Transaction Updated!"
@@ -424,20 +441,64 @@ fun InputTransactionScreen(
         }
     }
 
+    // DIALOG SUMBER GAMBAR (Kamera/Galeri)
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text("Add Photo") },
+            text = { Text("Choose source") },
+            confirmButton = {
+                TextButton(onClick = { showImageSourceDialog = false; cameraLauncher.launch() }) { Text("Camera") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false; galleryLauncher.launch("image/*") }) { Text("Gallery") }
+            }
+        )
+    }
+
+    // UPDATE: DIALOG FULL SCREEN IMAGE
+    if (showFullImageDialog && currentImagePath != null) {
+        Dialog(onDismissRequest = { showFullImageDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight() // Menyesuaikan tinggi gambar
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black)
+            ) {
+                val bitmap = BitmapFactory.decodeFile(currentImagePath)
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Full Image",
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = ContentScale.Fit // Agar seluruh gambar terlihat
+                    )
+                }
+
+                // Tombol Close di pojok kanan atas dialog
+                IconButton(
+                    onClick = { showFullImageDialog = false },
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+
+    // DATE PICKER DIALOG
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    dateState.selectedDateMillis?.let { selectedDate = it }
-                    showDatePicker = false
-                }) { Text("OK") }
+                TextButton(onClick = { dateState.selectedDateMillis?.let { selectedDate = it }; showDatePicker = false }) { Text("OK") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            }
-        ) {
-            DatePicker(state = dateState)
-        }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = dateState) }
     }
 }

@@ -217,7 +217,7 @@ fun TransactionItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(transaction.date)),
+                    text = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(transaction.date)),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )

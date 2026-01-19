@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
 
                     composable(
                         // Rute menerima banyak parameter opsional
-                        route = "input_transaction?txnId={txnId}&amount={amount}&category={category}&dateStr={dateStr}",
+                        route = "input_transaction?txnId={txnId}&amount={amount}&category={category}&dateStr={dateStr}&imagePath={imagePath}",
                         arguments = listOf(
                             navArgument("txnId") {
                                 type = NavType.IntType
@@ -59,6 +59,10 @@ class MainActivity : ComponentActivity() {
                             navArgument("dateStr") {
                                 type = NavType.StringType
                                 defaultValue = ""
+                            },
+                            navArgument("imagePath") {
+                                type = androidx.navigation.NavType.StringType
+                                defaultValue = ""
                             }
                         )
                     ) { backStackEntry ->
@@ -66,13 +70,15 @@ class MainActivity : ComponentActivity() {
                         val amount = backStackEntry.arguments?.getString("amount") ?: ""
                         val category = backStackEntry.arguments?.getString("category") ?: ""
                         val dateStr = backStackEntry.arguments?.getString("dateStr") ?: ""
+                        val imagePath = backStackEntry.arguments?.getString("imagePath") ?: ""
 
                         InputTransactionScreen(
                             navController = rootNavController,
                             txnId = txnId,
                             scannedAmount = amount,
                             scannedCategory = category,
-                            scannedDate = dateStr
+                            scannedDate = dateStr,
+                            scannedImagePath = imagePath
                         )
                     }
                     composable("manage_category") {

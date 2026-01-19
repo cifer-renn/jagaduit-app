@@ -31,6 +31,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.jagaduit.utils.GeminiHelper
+import com.example.jagaduit.utils.saveBitmapToStorage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -252,18 +253,24 @@ private fun processBitmap(
     context: Context
 ) {
     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+        // 1. Simpan gambar struk ke file
+        val savedPath = saveBitmapToStorage(context, bitmap)
+
+        // 2. Analisis AI
         val result = geminiHelper.analyzeReceipt(bitmap)
         setLoading(false)
 
         if (result != null) {
+            // 3. Kirim path gambar via URL (encode URL jika perlu, tapi path internal aman biasanya)
             val route = "input_transaction?" +
                     "amount=${result.amount.toLong()}&" +
                     "category=${result.category ?: ""}&" +
-                    "dateStr=${result.date ?: ""}"
+                    "dateStr=${result.date ?: ""}&" +
+                    "imagePath=$savedPath"
 
             navController.navigate(route)
         } else {
-            Toast.makeText(context, "Failed to analyze receipt. Try again.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Failed to analyze", Toast.LENGTH_LONG).show()
         }
     }
 }

@@ -13,7 +13,8 @@ data class TransactionEntity(
     val category: String,
     val accountFrom: String,
     val accountTo: String?,
-    val note: String
+    val note: String,
+    val imagePath: String? = null
 )
 
 // 2. Tabel Kategori
