@@ -32,7 +32,7 @@ fun SplashScreen(navController: NavController) {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.logo_jagaduit),
+            painter = painterResource(id = R.drawable.logo_jagaduit_white),
             contentDescription = "Logo JagaDuit",
             modifier = Modifier.size(150.dp)
         )

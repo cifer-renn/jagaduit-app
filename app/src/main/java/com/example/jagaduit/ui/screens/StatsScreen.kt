@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.jagaduit.ui.components.MonthYearPickerDialog
 import com.example.jagaduit.ui.theme.ChartColors
 import com.example.jagaduit.utils.toRupiah
 import com.example.jagaduit.viewmodel.TransactionViewModel
@@ -37,21 +38,19 @@ fun StatsScreen(
     navController: NavController,
     viewModel: TransactionViewModel = viewModel()
 ) {
-    // Data
     val allTransactions by viewModel.transactionList.collectAsState(initial = emptyList())
 
-    // Filter Bulan
     var currentMonthOffset by remember { mutableIntStateOf(0) }
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MONTH, currentMonthOffset)
-    val currentMonthName = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
 
-    // Filter Tipe
+    val currentMonthName = SimpleDateFormat("MMM yyyy", Locale.US).format(calendar.time)
+
+    var showMonthPicker by remember { mutableStateOf(false) }
+
     var isExpense by remember { mutableStateOf(true) }
     val targetType = if (isExpense) "EXPENSE" else "INCOME"
 
-    // Logic pengolahan data untuk chart
-    // Filter berdasarkan bulan & tipe
     val filteredTransactions = allTransactions.filter { txn ->
         val txnCal = Calendar.getInstance()
         txnCal.timeInMillis = txn.date
@@ -60,7 +59,6 @@ fun StatsScreen(
                 txn.type == targetType
     }
 
-    // menggabungkan transaksi dengan kategori yang sama
     val groupedData = filteredTransactions
         .groupBy { it.category }
         .mapValues { entry -> entry.value.sumOf { it.amount } }
@@ -75,44 +73,44 @@ fun StatsScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
-        // Month selector & setting
+        // --- HEADER: < Bulan > (Kiri) & Edit (Kanan) ---
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp), // Padding vertikal agar sejajar
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { currentMonthOffset-- }) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Prev", tint = Color.White)
+            // BLOCK KIRI: < Bulan > Kompak
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { currentMonthOffset-- }) {
+                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+
+                Text(
+                    text = currentMonthName,
+                    style = MaterialTheme.typography.titleMedium, // Ukuran kecil
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .clickable { showMonthPicker = true }
+                        .padding(horizontal = 8.dp)
+                )
+
+                IconButton(onClick = { currentMonthOffset++ }) {
+                    Icon(Icons.Default.ArrowForwardIos, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(20.dp))
+                }
             }
 
-            Text(
-                text = currentMonthName,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Row {
-                IconButton(onClick = { currentMonthOffset++ }) {
-                    Icon(
-                        Icons.Default.ArrowForwardIos,
-                        contentDescription = "Next",
-                        tint = Color.White
-                    )
-                }
-                IconButton(onClick = { navController.navigate("manage_category") }) {
-                    Icon(
-                        Icons.Default.List,
-                        contentDescription = "Manage",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+            // BLOCK KANAN: Edit Pencil
+            IconButton(onClick = { navController.navigate("manage_category") }) {
+                Icon(Icons.Default.Edit, contentDescription = "Manage", tint = Color.White)
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
-        // Tombol Toggle
+        // --- TOGGLE BUTTON ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,9 +125,8 @@ fun StatsScreen(
                     .background(if (isExpense) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
                     .clickable { isExpense = true },
                 contentAlignment = Alignment.Center
-            ) {
-                Text("Expense", fontWeight = FontWeight.Bold, color = if (isExpense) Color.Black else Color.Gray)
-            }
+            ) { Text("Expense", fontWeight = FontWeight.Bold, color = if (isExpense) Color.Black else Color.Gray) }
+
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -137,70 +134,64 @@ fun StatsScreen(
                     .background(if (!isExpense) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(8.dp))
                     .clickable { isExpense = false },
                 contentAlignment = Alignment.Center
-            ) {
-                Text("Income", fontWeight = FontWeight.Bold, color = if (!isExpense) Color.Black else Color.Gray)
-            }
+            ) { Text("Income", fontWeight = FontWeight.Bold, color = if (!isExpense) Color.Black else Color.Gray) }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Chart area
+        // --- CHART ---
         if (totalAmount > 0) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 DonutChart(groupedData, totalAmount)
-
-                // Text total
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Total", color = Color.Gray, fontSize = 12.sp)
-                    Text(
-                        text = totalAmount.toRupiah(),
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 16.sp
-                    )
+                    Text(text = totalAmount.toRupiah(), fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
                 }
             }
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            // list kategorinya
             LazyColumn {
                 itemsIndexed(groupedData) { index, item ->
                     val color = ChartColors[index % ChartColors.size]
                     val percentage = (item.second / totalAmount * 100).toInt()
-
-                    CategoryStatItem(
-                        name = item.first,
-                        amount = item.second,
-                        percentage = percentage,
-                        color = color
-                    )
+                    CategoryStatItem(name = item.first, amount = item.second, percentage = percentage, color = color)
                 }
             }
         } else {
-            // Empty State
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No Data for this month", color = Color.Gray)
             }
         }
     }
+
+    // --- DIALOG PICKER ---
+    MonthYearPickerDialog(
+        visible = showMonthPicker,
+        currentMonth = calendar.get(Calendar.MONTH),
+        currentYear = calendar.get(Calendar.YEAR),
+        onDismiss = { showMonthPicker = false },
+        onDateSelected = { month, year ->
+            val today = Calendar.getInstance()
+            val target = Calendar.getInstance()
+            target.set(Calendar.YEAR, year)
+            target.set(Calendar.MONTH, month)
+            val diffYear = target.get(Calendar.YEAR) - today.get(Calendar.YEAR)
+            val diffMonth = target.get(Calendar.MONTH) - today.get(Calendar.MONTH)
+            currentMonthOffset = (diffYear * 12) + diffMonth
+        }
+    )
 }
 
-// KOMPONEN CHART
 @Composable
 fun DonutChart(data: List<Pair<String, Double>>, total: Double) {
     Canvas(modifier = Modifier.size(200.dp)) {
         val strokeWidth = 30.dp.toPx()
-        val radius = size.minDimension / 2 - strokeWidth / 2
         var startAngle = -90f
-
         data.forEachIndexed { index, entry ->
             val sweepAngle = (entry.second / total * 360).toFloat()
             val color = ChartColors[index % ChartColors.size]
-
             drawArc(
                 color = color,
                 startAngle = startAngle,
@@ -217,30 +208,13 @@ fun DonutChart(data: List<Pair<String, Double>>, total: Double) {
 
 @Composable
 fun CategoryStatItem(name: String, amount: Double, percentage: Int, color: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .clip(CircleShape)
-                .background(color)
-        )
-
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(color))
         Spacer(modifier = Modifier.width(12.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(text = name, color = Color.White, fontWeight = FontWeight.Medium)
             Text(text = "$percentage%", color = Color.Gray, fontSize = 12.sp)
         }
-
-        Text(
-            text = amount.toRupiah(),
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
+        Text(text = amount.toRupiah(), color = Color.White, fontWeight = FontWeight.Bold)
     }
 }
