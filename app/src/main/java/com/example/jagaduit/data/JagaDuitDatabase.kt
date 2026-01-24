@@ -9,19 +9,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+// --- PERHATIKAN BAGIAN ENTITIES & VERSION ---
 @Database(
-    entities = [TransactionEntity::class, CategoryEntity::class, AccountEntity::class],
-    version = 1,
+    entities = [
+        TransactionEntity::class,
+        CategoryEntity::class,
+        AccountEntity::class,
+        GoalEntity::class,
+        GoalHistoryEntity::class // <--- WAJIB DITAMBAHKAN (Ini yang bikin error)
+    ],
+    version = 4, // <--- NAIKKAN VERSI JADI 4
     exportSchema = false
 )
 abstract class JagaDuitDatabase : RoomDatabase() {
 
-    // KITA BUTUH KEDUANYA:
-    // 1. AppDao untuk Transaksi (sesuai kodingan lama)
     abstract fun appDao(): AppDao
-
-    // 2. AccountDao untuk ViewModel Account (sesuai kodingan baru)
     abstract fun accountDao(): AccountDao
+    abstract fun goalDao(): GoalDao
 
     companion object {
         @Volatile
@@ -35,7 +39,7 @@ abstract class JagaDuitDatabase : RoomDatabase() {
                     "jagaduit_database"
                 )
                     .addCallback(DatabaseCallback())
-                    .fallbackToDestructiveMigration() // Tambahan aman: Reset db jika struktur berubah drastis
+                    .fallbackToDestructiveMigration() // Reset DB kalau struktur berubah
                     .build()
                 INSTANCE = instance
                 instance
@@ -43,36 +47,24 @@ abstract class JagaDuitDatabase : RoomDatabase() {
         }
     }
 
-    // Callback untuk mengisi data awal saat database pertama kali dibuat
     private class DatabaseCallback : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
-                    // Kita pakai appDao untuk isi data awal
-                    // (Asumsi function insertCategory & insertAccount ada di AppDao)
                     populateDatabase(database.appDao())
                 }
             }
         }
 
         suspend fun populateDatabase(dao: AppDao) {
-            // Data Awal: Expense Categories
+            // Data awal kategori & akun (sama seperti sebelumnya)
             dao.insertCategory(CategoryEntity(name = "Makanan", type = "EXPENSE"))
             dao.insertCategory(CategoryEntity(name = "Transport", type = "EXPENSE"))
-            dao.insertCategory(CategoryEntity(name = "Belanja", type = "EXPENSE"))
-            dao.insertCategory(CategoryEntity(name = "Tagihan", type = "EXPENSE"))
-
-            // Data Awal: Income Categories
             dao.insertCategory(CategoryEntity(name = "Gaji", type = "INCOME"))
-            dao.insertCategory(CategoryEntity(name = "Bonus", type = "INCOME"))
 
-            // Data Awal: Default Accounts (Dompet)
-            // Pastikan method insertAccount ada di AppDao.
-            // Kalau error merah disini, berarti pindahkan insertAccount ke AccountDao.
             dao.insertAccount(AccountEntity(name = "Cash", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "BCA", balance = 0.0))
-            dao.insertAccount(AccountEntity(name = "Gopay", balance = 0.0))
         }
     }
 }

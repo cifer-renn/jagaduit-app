@@ -279,5 +279,3 @@ fun TransactionItem(
         )
     }
 }
-@Composable
-fun GoalScreen() { Box(Modifier.fillMaxSize(), Alignment.Center) { Text("Goal Screen", color = Color.White) } }

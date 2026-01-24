@@ -27,6 +27,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="com.example.jagaduit.ui.screens.NewGoalActivity" />
+        <activity android:name="com.example.jagaduit.ui.screens.DetailGoalActivity" />
     </application>
 
 </manifest>
