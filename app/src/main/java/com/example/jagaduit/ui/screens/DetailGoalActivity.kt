@@ -99,8 +99,8 @@ fun DetailGoalContent(goalId: Int, onBack: () -> Unit) {
                 AsyncImage(
                     model = currentGoal.imagePath,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(250.dp),
-                    contentScale = ContentScale.Crop
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentScale = ContentScale.Fit
                 )
             } else {
                 Box(Modifier.fillMaxWidth().height(200.dp).background(Color.DarkGray), contentAlignment = Alignment.Center) {

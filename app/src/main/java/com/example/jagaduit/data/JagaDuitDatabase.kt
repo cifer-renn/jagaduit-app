@@ -47,7 +47,7 @@ abstract class JagaDuitDatabase : RoomDatabase() {
         }
     }
 
-    private class DatabaseCallback : RoomDatabase.Callback() {
+    private class DatabaseCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             INSTANCE?.let { database ->

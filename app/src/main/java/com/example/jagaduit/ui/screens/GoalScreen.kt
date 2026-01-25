@@ -1,6 +1,5 @@
 package com.example.jagaduit.ui.screens
 
-// --- BAGIAN INI SANGAT PENTING (IMPORT) ---
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

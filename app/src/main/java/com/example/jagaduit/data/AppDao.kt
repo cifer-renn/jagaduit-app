@@ -34,7 +34,6 @@ interface AppDao {
     fun getCategoriesByType(type: String): Flow<List<CategoryEntity>>
 
     // --- ACCOUNT (DOMPET) ---
-    // Update agar sesuai dengan Entity temanmu (tabel: accounts)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAccount(account: AccountEntity)
