@@ -58,13 +58,22 @@ abstract class JagaDuitDatabase : RoomDatabase() {
         }
 
         suspend fun populateDatabase(dao: AppDao) {
-            // Data awal kategori & akun (sama seperti sebelumnya)
+            // Data Awal: Expense Categories
             dao.insertCategory(CategoryEntity(name = "Makanan", type = "EXPENSE"))
             dao.insertCategory(CategoryEntity(name = "Transport", type = "EXPENSE"))
-            dao.insertCategory(CategoryEntity(name = "Gaji", type = "INCOME"))
+            dao.insertCategory(CategoryEntity(name = "Belanja", type = "EXPENSE"))
+            dao.insertCategory(CategoryEntity(name = "Tagihan", type = "EXPENSE"))
 
+            // Data Awal: Income Categories
+            dao.insertCategory(CategoryEntity(name = "Gaji", type = "INCOME"))
+            dao.insertCategory(CategoryEntity(name = "Bonus", type = "INCOME"))
+
+            // Data Awal: Default Accounts (Dompet)
+            // Pastikan method insertAccount ada di AppDao.
+            // Kalau error merah disini, berarti pindahkan insertAccount ke AccountDao.
             dao.insertAccount(AccountEntity(name = "Cash", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "BCA", balance = 0.0))
+            dao.insertAccount(AccountEntity(name = "Gopay", balance = 0.0))
         }
     }
 }

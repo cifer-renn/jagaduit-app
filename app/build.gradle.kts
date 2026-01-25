@@ -99,6 +99,7 @@ dependencies {
 
     // UTILS
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // MATERIAL DESIGN
     implementation("com.google.android.material:material:1.12.0")
@@ -111,6 +112,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    implementation("io.coil-kt:coil-compose:2.7.0")
 }

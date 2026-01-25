@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -86,7 +87,7 @@ fun AccountScreen(
                 },
                 containerColor = MaterialTheme.colorScheme.secondary
             ) {
-                Text("+", fontSize = 24.sp, color = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Add Account", tint = Color.Black)
             }
         }
     ) { padding ->
