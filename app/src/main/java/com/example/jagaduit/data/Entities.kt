@@ -3,7 +3,6 @@ package com.example.jagaduit.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-// 1. Tabel Transaksi
 @Entity(tableName = "transactions")
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -17,7 +16,6 @@ data class TransactionEntity(
     val imagePath: String? = null
 )
 
-// 2. Tabel Kategori
 @Entity(tableName = "categories")
 data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -25,9 +23,16 @@ data class CategoryEntity(
     val type: String
 )
 
-// 3. Tabel Akun
 @Entity(tableName = "accounts")
 data class AccountEntity(
     @PrimaryKey val name: String,
     val balance: Double = 0.0
+)
+
+@Entity(tableName = "users")
+data class UserEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val email: String,
+    val password: String
 )

@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,11 +23,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.jagaduit.ui.components.MonthYearPickerDialog
+import com.example.jagaduit.utils.SessionManager
 import com.example.jagaduit.utils.toRupiah
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -37,6 +42,12 @@ fun TransactionScreen(
     navController: NavController,
     viewModel: com.example.jagaduit.viewmodel.TransactionViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+
+    // Ambil Nama User
+    val userName = remember { sessionManager.getUserName() }
+
     val allTransactions by viewModel.transactionList.collectAsState(initial = emptyList())
 
     // State Filter Bulan
@@ -79,37 +90,90 @@ fun TransactionScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp)
         ) {
-            // --- HEADER KOMPAK POJOK KIRI ATAS ---
+            // HEADER
             Row(
                 modifier = Modifier
-                    .wrapContentWidth() // Agar tidak melebar ke samping
-                    .padding(vertical = 2.dp), // Padding atas bawah agar sejajar
-                horizontalArrangement = Arrangement.Start, // Rata Kiri
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp), // Padding vertikal kecil agar rapi
+                horizontalArrangement = Arrangement.SpaceBetween, // Pisahkan Kiri dan Kanan
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Panah Kiri
-                IconButton(onClick = { currentMonthOffset-- }) {
-                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(20.dp))
+                // MONTH SELECTOR
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { currentMonthOffset-- }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Prev", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+
+                    Text(
+                        text = currentMonthName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier
+                            .clickable { showMonthPicker = true }
+                            .padding(horizontal = 8.dp)
+                    )
+
+                    IconButton(onClick = { currentMonthOffset++ }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.ArrowForwardIos, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
                 }
 
-                // Teks Tengah (Klik untuk Buka Picker)
-                Text(
-                    text = currentMonthName,
-                    style = MaterialTheme.typography.titleMedium, // Ukuran lebih kecil
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary, // Lime
-                    modifier = Modifier
-                        .clickable { showMonthPicker = true }
-                        .padding(horizontal = 8.dp) // Jarak dengan panah
-                )
+                // USER PROFILE & LOGOUT
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.End, // Rata Kanan (Pojok Kanan Bawah)
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Icon User & Nama
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "User",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = userName,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
 
-                // Panah Kanan
-                IconButton(onClick = { currentMonthOffset++ }) {
-                    Icon(Icons.Default.ArrowForwardIos, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Divider Kecil
+                        Box(modifier = Modifier.width(1.dp).height(16.dp).background(Color.Gray))
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Tombol Logout
+                        Row(
+                            modifier = Modifier
+                                .clickable {
+                                    sessionManager.logout()
+                                    navController.navigate("login") {
+                                        popUpTo("main") { inclusive = true }
+                                    }
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Logout", color = ExpenseRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.ExitToApp, contentDescription = "Logout", tint = ExpenseRed, modifier = Modifier.size(20.dp))
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // --- SUMMARY CARD ---
             Card(

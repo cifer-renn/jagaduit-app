@@ -1,4 +1,4 @@
-package com.example.jagaduit.ui.screens // <-- SAYA TAMBAH 's' BIAR SESUAI FOLDER
+package com.example.jagaduit.ui.screens
 
 import android.app.Application
 import android.widget.Toast
@@ -27,11 +27,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jagaduit.data.AccountEntity
 import com.example.jagaduit.utils.toRupiah
-import com.example.jagaduit.viewmodel.AccountViewModel // <-- INI YANG TADI HILANG
+import com.example.jagaduit.viewmodel.AccountViewModel
 import com.example.jagaduit.viewmodel.TransactionViewModel
 import kotlin.math.abs
 
-// --- PERBAIKAN: FACTORY MENGGUNAKAN APPLICATION ---
+// Factory untuk TransactionViewModel
 class TransactionViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -46,7 +46,6 @@ class TransactionViewModelFactory(private val application: Application) : ViewMo
 fun AccountScreen(
     viewModel: AccountViewModel
 ) {
-    // 1. Setup TransactionViewModel (Untuk catat selisih)
     val context = LocalContext.current
     val application = context.applicationContext as Application
 
@@ -62,19 +61,24 @@ fun AccountScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showConfirmDifferenceDialog by remember { mutableStateOf(false) }
 
+    // --- 1. STATE BARU UNTUK HAPUS ---
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var accountToDelete by remember { mutableStateOf<AccountEntity?>(null) } // Simpan akun yg mau dihapus
+
     // Data sementara untuk Edit
     var accountToEdit by remember { mutableStateOf<AccountEntity?>(null) }
     var inputName by remember { mutableStateOf("") }
     var inputBalance by remember { mutableStateOf("") }
 
     // Data selisih
-    var detectedDifference by remember { mutableDoubleStateOf(0.0) } // (+) Income, (-) Expense
+    var detectedDifference by remember { mutableDoubleStateOf(0.0) }
 
-    // --- FUNGSI RESET INPUT ---
+    // Fungsi Reset
     fun resetInput() {
         inputName = ""
         inputBalance = ""
         accountToEdit = null
+        accountToDelete = null // Reset juga yg mau dihapus
         detectedDifference = 0.0
     }
 
@@ -128,10 +132,8 @@ fun AccountScreen(
                     AccountItem(
                         account = account,
                         onEditClick = {
-                            // Buka dialog edit
                             accountToEdit = account
                             inputName = account.name
-                            // Convert Double ke String (hapus .0 jika bulat)
                             val balanceLong = account.balance.toLong()
                             inputBalance = if (account.balance == balanceLong.toDouble()) {
                                 balanceLong.toString()
@@ -140,14 +142,19 @@ fun AccountScreen(
                             }
                             showEditDialog = true
                         },
-                        onDeleteClick = { viewModel.deleteAccount(account) }
+                        onDeleteClick = {
+                            // --- 2. UBAH LOGIKA TOMBOL DELETE ---
+                            // Jangan langsung hapus, tapi simpan dulu datanya & buka dialog
+                            accountToDelete = account
+                            showDeleteDialog = true
+                        }
                     )
                 }
             }
         }
     }
 
-    // --- 1. DIALOG TAMBAH AKUN BARU ---
+    // --- DIALOG TAMBAH AKUN ---
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
@@ -182,7 +189,7 @@ fun AccountScreen(
         )
     }
 
-    // --- 2. DIALOG EDIT AKUN ---
+    // --- DIALOG EDIT AKUN ---
     if (showEditDialog && accountToEdit != null) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
@@ -209,13 +216,11 @@ fun AccountScreen(
                     val oldBalance = accountToEdit!!.balance
                     val diff = newBalance - oldBalance
 
-                    // Cek apakah ada selisih saldo
-                    if (abs(diff) > 0.0) { // Pakai abs untuk safety float comparison
+                    if (abs(diff) > 0.0) {
                         detectedDifference = diff
                         showEditDialog = false
-                        showConfirmDifferenceDialog = true // Trigger dialog warning
+                        showConfirmDifferenceDialog = true
                     } else {
-                        // Kalau saldo sama, cuma update nama aja
                         val updated = accountToEdit!!.copy(name = inputName, balance = newBalance)
                         viewModel.updateAccount(updated)
                         showEditDialog = false
@@ -228,14 +233,14 @@ fun AccountScreen(
         )
     }
 
-    // --- 3. DIALOG WARNING SELISIH (BAHASA INDONESIA) ---
+    // --- DIALOG WARNING SELISIH ---
     if (showConfirmDifferenceDialog && accountToEdit != null) {
         val isProfit = detectedDifference > 0
         val diffText = abs(detectedDifference).toRupiah()
 
         AlertDialog(
             onDismissRequest = { showConfirmDifferenceDialog = false },
-            containerColor = Color(0xFF1E1E1E), // Warna gelap
+            containerColor = Color(0xFF1E1E1E),
             titleContentColor = Color.White,
             textContentColor = Color.LightGray,
             title = { Text("Penyesuaian Saldo") },
@@ -253,23 +258,19 @@ fun AccountScreen(
                 }
             },
             confirmButton = {
-                // TOMBOL: IYA (Update Saldo + Bikin Transaksi)
                 Button(
                     onClick = {
                         val finalBalance = inputBalance.toDoubleOrNull() ?: 0.0
-
-                        // 1. Update Akun
                         val updatedAccount = accountToEdit!!.copy(name = inputName, balance = finalBalance)
                         viewModel.updateAccount(updatedAccount)
 
-                        // 2. Buat Transaksi Otomatis
                         txnViewModel.saveTransaction(
                             id = 0,
                             date = System.currentTimeMillis(),
                             amount = abs(detectedDifference),
                             type = if (isProfit) "INCOME" else "EXPENSE",
-                            category = "Difference", // Kategori Difference
-                            accountFrom = updatedAccount.name, // Akun yang diedit
+                            category = "Difference",
+                            accountFrom = updatedAccount.name,
                             accountTo = null,
                             note = "Penyesuaian Saldo Manual"
                         )
@@ -284,7 +285,6 @@ fun AccountScreen(
                 }
             },
             dismissButton = {
-                // TOMBOL: TIDAK (Cuma Update Saldo)
                 TextButton(
                     onClick = {
                         val finalBalance = inputBalance.toDoubleOrNull() ?: 0.0
@@ -297,6 +297,42 @@ fun AccountScreen(
                     }
                 ) {
                     Text("TIDAK", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // --- 3. DIALOG KONFIRMASI HAPUS (BARU) ---
+    if (showDeleteDialog && accountToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Hapus Akun") },
+            text = {
+                Text("Apakah Anda yakin ingin menghapus akun \"${accountToDelete?.name}\"?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // EKSEKUSI HAPUS
+                        accountToDelete?.let {
+                            viewModel.deleteAccount(it)
+                        }
+                        showDeleteDialog = false
+                        accountToDelete = null // Bersihkan state
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red) // Merah biar warning
+                ) {
+                    Text("YA", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false // Tutup dialog aja
+                        accountToDelete = null
+                    }
+                ) {
+                    Text("TIDAK")
                 }
             }
         )
@@ -328,11 +364,10 @@ fun AccountItem(
                 Text(account.balance.toRupiah(), color = MaterialTheme.colorScheme.secondary)
             }
             Row {
-                // Tombol Edit
                 IconButton(onClick = onEditClick) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
                 }
-                // Tombol Hapus
+                // Saat tombol ini diklik, dia akan memanggil onDeleteClick yg ada di LazyColumn
                 IconButton(onClick = onDeleteClick) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                 }

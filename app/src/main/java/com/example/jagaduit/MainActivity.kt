@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.example.jagaduit.ui.screens.ForgotPasswordScreen
 import com.example.jagaduit.ui.screens.InputTransactionScreen
 import com.example.jagaduit.ui.screens.LoginScreen
+import com.example.jagaduit.ui.screens.SignUpScreen
 import com.example.jagaduit.ui.screens.MainScreen
 import com.example.jagaduit.ui.screens.ManageCategoryScreen
 import com.example.jagaduit.ui.screens.SplashScreen
@@ -32,6 +33,11 @@ class MainActivity : ComponentActivity() {
                     composable("login") {
                         LoginScreen(rootNavController)
                     }
+
+                    composable("signup") {
+                        SignUpScreen(rootNavController)
+                    }
+
                     composable("forgot_password") {
                         ForgotPasswordScreen(rootNavController)
                     }

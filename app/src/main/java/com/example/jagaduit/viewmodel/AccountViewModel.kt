@@ -25,23 +25,11 @@ class AccountViewModel(private val dao: AccountDao) : ViewModel() {
         }
     }
 
-    // --- FUNGSI UPDATE (YANG HILANG) ---
+    // --- FUNGSI UPDATE ---
     // Pastikan di AccountDao.kt sudah ada @Update suspend fun updateAccount(...)
     fun updateAccount(account: AccountEntity) {
         viewModelScope.launch {
             dao.updateAccount(account)
-        }
-    }
-
-    // Fungsi Update Saldo (dipakai saat transaksi terjadi)
-    fun updateAccountBalance(accountName: String, amount: Double, isExpense: Boolean) {
-        viewModelScope.launch {
-            // Karena kita butuh saldo saat ini, logika ini biasanya ditangani di DAO
-            // atau dengan logic pengambilan data dulu.
-            // Untuk simplifikasi, kita asumsikan pemanggil sudah memastikan data benar
-            // atau menggunakan query @Query("UPDATE ...") di DAO.
-
-            // Note: Untuk fitur edit manual di AccountScreen, kita pakai fungsi 'updateAccount' di atas.
         }
     }
 }

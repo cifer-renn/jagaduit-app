@@ -48,4 +48,13 @@ interface AppDao {
     // Query ke tabel 'accounts' dan where 'name' (karena name adalah PK)
     @Query("UPDATE accounts SET balance = :newBalance WHERE name = :accountName")
     suspend fun updateAccountBalance(accountName: String, newBalance: Double)
+
+    @Insert
+    suspend fun registerUser(user: UserEntity)
+
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    suspend fun getUserByEmail(email: String): UserEntity?
+
+    @Query("SELECT * FROM users WHERE email = :email AND password = :password LIMIT 1")
+    suspend fun loginUser(email: String, password: String): UserEntity?
 }

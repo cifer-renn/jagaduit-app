@@ -15,12 +15,14 @@ import kotlinx.coroutines.launch
         TransactionEntity::class,
         CategoryEntity::class,
         AccountEntity::class,
+        UserEntity::class,
         GoalEntity::class,
-        GoalHistoryEntity::class // <--- WAJIB DITAMBAHKAN (Ini yang bikin error)
+        GoalHistoryEntity::class
     ],
-    version = 4, // <--- NAIKKAN VERSI JADI 4
+    version = 4,
     exportSchema = false
 )
+
 abstract class JagaDuitDatabase : RoomDatabase() {
 
     abstract fun appDao(): AppDao
@@ -39,7 +41,7 @@ abstract class JagaDuitDatabase : RoomDatabase() {
                     "jagaduit_database"
                 )
                     .addCallback(DatabaseCallback())
-                    .fallbackToDestructiveMigration() // Reset DB kalau struktur berubah
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
@@ -69,8 +71,6 @@ abstract class JagaDuitDatabase : RoomDatabase() {
             dao.insertCategory(CategoryEntity(name = "Bonus", type = "INCOME"))
 
             // Data Awal: Default Accounts (Dompet)
-            // Pastikan method insertAccount ada di AppDao.
-            // Kalau error merah disini, berarti pindahkan insertAccount ke AccountDao.
             dao.insertAccount(AccountEntity(name = "Cash", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "BCA", balance = 0.0))
             dao.insertAccount(AccountEntity(name = "Gopay", balance = 0.0))

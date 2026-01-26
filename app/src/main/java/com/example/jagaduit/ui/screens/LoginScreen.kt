@@ -2,6 +2,7 @@ package com.example.jagaduit.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,49 +23,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.jagaduit.R
+import com.example.jagaduit.utils.SessionManager
+import com.example.jagaduit.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = viewModel()
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val context = LocalContext.current
 
-    // GUNAKAN BOX SEBAGAI CONTAINER UTAMA
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // --- 1. LOGO APLIKASI (POJOK KIRI ATAS) ---
+        // --- 1. LOGO APLIKASI (STYLE DARI ANDA) ---
         Image(
             painter = painterResource(id = R.drawable.logo_jagaduit_notext),
             contentDescription = "Logo App",
             modifier = Modifier
-                .align(Alignment.TopStart) // Tempel di Kiri Atas
-                .padding(top = 48.dp, start = 24.dp) // Beri jarak aman dari status bar & pinggir
-                .size(30.dp) // Ukuran logo kecil/sedang yang pas
+                .align(Alignment.TopStart)
+                .padding(top = 30.dp, start = 24.dp)
+                .size(38.dp)
         )
 
-        // --- 2. FORM LOGIN (TETAP DI TENGAH LAYAR) ---
+        // --- 2. FORM LOGIN ---
         Column(
             modifier = Modifier
-                .align(Alignment.Center) // Pastikan Form ada di tengah
+                .align(Alignment.Center)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Judul
             Text(
-                text = "Welcome Back!",
-                color = MaterialTheme.colorScheme.onPrimary,
+                text = "Selamat Datang!",
+                color = MaterialTheme.colorScheme.secondary,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
-                text = "Login to manage your money",
+                text = "Login untuk mengelola uang mu",
                 color = Color.Gray,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(bottom = 32.dp)
@@ -118,11 +123,30 @@ fun LoginScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Tombol Sign In Biasa
             Button(
-                onClick = { navController.navigate("main") },
+                onClick = {
+                    // LOGIKA VERIFIKASI LOGIN
+                    if (email.isNotEmpty() && password.isNotEmpty()) {
+                        // Logic Login Diupdate
+                        viewModel.login(email, password) { user ->
+                            if (user != null) {
+                                val sessionManager = SessionManager(context)
+                                sessionManager.createLoginSession(user.name)
+
+                                Toast.makeText(context, "Welcome, ${user.name}!", Toast.LENGTH_SHORT).show()
+                                navController.navigate("main") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            } else {
+                                Toast.makeText(context, "Email atau Password salah!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Masukan email & password", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -149,10 +173,11 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Tombol Google Eksplisit (Dengan Logo Google Image)
             Button(
-                onClick = { val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
-                    context.startActivity(intent) },
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com"))
+                    context.startActivity(intent)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
@@ -174,14 +199,16 @@ fun LoginScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sign Up Link
+            // Sign Up Link (Logic Navigasi Diaktifkan)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "Don't have an account? ", color = Color.Gray)
+                Text(text = "Tidak Punya Akun? ", color = Color.Gray)
                 Text(
-                    text = "Sign Up",
+                    text = "Daftar Disini",
                     color = MaterialTheme.colorScheme.secondary,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { /* Navigate to Sign Up */ }
+                    modifier = Modifier.clickable {
+                        navController.navigate("signup")
+                    }
                 )
             }
         }
