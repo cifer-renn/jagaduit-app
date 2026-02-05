@@ -117,7 +117,7 @@ fun LoginScreen(
             ) {
                 TextButton(onClick = { navController.navigate("forgot_password") }) {
                     Text(
-                        text = "Forgot Password?",
+                        text = "Lupa Password?",
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
